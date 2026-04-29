@@ -1,0 +1,1602 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8'>
+<title>Analizador de Viajes</title>
+<style type='text/css'>
+html, body { margin: 0; padding: 0; height: 100%; width: 100%; background: #f5f7fa; font-family: Arial, sans-serif; font-size: 13px; color: #1a1a1a; }
+body { display: flex; flex-direction: column; overflow: hidden; }
+
+.hdr { background: #0d3c6e; color: white; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
+.hdr h1 { margin: 0; font-size: 14px; font-weight: 600; }
+.hdr small { font-size: 10px; opacity: 0.8; display: block; margin-top: 2px; }
+.hdr .pill { background: #00a884; color: white; font-size: 10px; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+
+.filters { background: white; border-bottom: 1px solid #ddd; padding: 10px 16px; }
+.filters table { width: 100%; border-collapse: collapse; }
+.filters td { padding: 4px 5px; vertical-align: bottom; }
+.filters label { display: block; font-size: 10px; color: #666; font-weight: 600; text-transform: uppercase; margin-bottom: 3px; }
+.filters select, .filters input { width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; box-sizing: border-box; }
+.filters .btn { background: #0d3c6e; color: white; border: none; padding: 7px 14px; border-radius: 4px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.filters .btn:hover { background: #185fa5; }
+.filters .btn:disabled { background: #aac3e0; cursor: not-allowed; }
+.filters .btn-csv { background: white; color: #333; border: 1px solid #ccc; padding: 7px 14px; border-radius: 4px; font-size: 12px; cursor: pointer; }
+.filters .btn-csv:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.kpis { background: white; border-bottom: 1px solid #ddd; padding: 0; }
+.kpis table { width: 100%; border-collapse: collapse; }
+.kpis td { padding: 10px 14px; border-right: 1px solid #eee; width: 25%; }
+.kpis td:last-child { border-right: none; }
+.kpi-lbl { font-size: 10px; color: #888; text-transform: uppercase; font-weight: 600; margin-bottom: 4px; }
+.kpi-val { font-size: 20px; font-weight: 700; color: #0d3c6e; }
+.kpi-unit { font-size: 11px; color: #888; font-weight: 400; margin-left: 2px; }
+
+.main { flex: 1; display: flex; overflow: hidden; }
+.panel-l { width: 60%; border-right: 1px solid #ddd; background: white; display: flex; flex-direction: column; overflow: hidden; }
+.panel-r { width: 40%; background: #e8eef5; position: relative; overflow: hidden; }
+
+.tbl-hdr { padding: 8px 14px; background: #f0f3f7; border-bottom: 1px solid #ddd; font-size: 11px; color: #555; display: flex; justify-content: space-between; }
+.tbl-hdr b { color: #00a884; }
+.tbl-hint { color: #999; font-style: italic; font-size: 10px; }
+
+.tbl-wrap { overflow: auto; flex: 1; }
+.tbl-data { width: 100%; border-collapse: collapse; background: white; }
+.tbl-data thead th { background: #f7f9fc; color: #555; font-size: 10px; text-transform: uppercase; font-weight: 700; padding: 8px 10px; text-align: left; border-bottom: 2px solid #d8dfe8; white-space: nowrap; position: sticky; top: 0; }
+.tbl-data tbody td { padding: 9px 10px; border-bottom: 1px solid #eee; font-size: 12px; white-space: nowrap; }
+.tbl-data tbody tr { cursor: pointer; }
+.tbl-data tbody tr:hover td { background: #f0f7ff; }
+.tbl-data tbody tr.active td { background: #d4e6ff !important; }
+.tbl-data tbody tr.active td:first-child { border-left: 3px solid #0d3c6e; padding-left: 7px; }
+.td-veh { font-weight: 700; color: #0d3c6e; }
+.td-time { color: #555; font-family: 'Courier New', monospace; font-size: 11px; }
+.td-dist { font-weight: 700; color: #00a884; font-family: 'Courier New', monospace; }
+.td-vel { font-family: 'Courier New', monospace; font-size: 11px; }
+
+.badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 12px; font-weight: 700; }
+.b-ok { background: #d4f5dd; color: #1e6b3a; }
+.b-late { background: #fff0d4; color: #8b5a00; }
+.b-speed { background: #ffd6da; color: #a32d2d; }
+
+#map-container { width: 100%; height: 100%; }
+.map-card { position: absolute; top: 12px; left: 12px; background: white; border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; min-width: 250px; z-index: 500; box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: none; }
+.map-card .title { font-size: 12px; font-weight: 700; color: #0d3c6e; padding-bottom: 6px; margin-bottom: 8px; border-bottom: 1px solid #eee; }
+.map-card table { width: 100%; border-collapse: collapse; }
+.map-card td { padding: 4px 6px; font-size: 11px; vertical-align: top; }
+.map-card .ms-lbl { color: #777; font-size: 9px; text-transform: uppercase; }
+.map-card .ms-val { font-weight: 700; color: #0d3c6e; font-size: 13px; font-family: 'Courier New', monospace; }
+.map-card .compare-section { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #ccc; }
+.map-card .compare-title { font-size: 10px; color: #666; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+.btn-compute { background: #00a884; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: 600; cursor: pointer; width: 100%; }
+.btn-compute:hover { background: #00876a; }
+.btn-compute:disabled { background: #ccc; cursor: not-allowed; }
+.compare-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 11px; }
+.compare-row .lbl { color: #777; }
+.compare-row .val { font-weight: 700; font-family: 'Courier New', monospace; }
+.diff-pos { color: #d62c2c; }
+.diff-neg { color: #00a884; }
+.map-placeholder { display: flex; align-items: center; justify-content: center; height: 100%; color: #888; text-align: center; padding: 20px; font-size: 12px; }
+
+.legend { position: absolute; bottom: 12px; left: 12px; background: white; border: 1px solid #ddd; border-radius: 6px; padding: 8px 12px; z-index: 500; box-shadow: 0 2px 6px rgba(0,0,0,0.1); display: none; }
+.leg-row { display: flex; align-items: center; gap: 7px; font-size: 10px; color: #555; margin-bottom: 4px; }
+.leg-row:last-child { margin-bottom: 0; }
+.leg-line { width: 18px; height: 3px; border-radius: 2px; }
+
+.state-init, .empty, .loading { padding: 40px 20px; text-align: center; color: #888; }
+.state-init .icon, .empty .icon { font-size: 36px; margin-bottom: 12px; opacity: 0.5; }
+.state-init h2 { font-size: 16px; color: #0d3c6e; margin-bottom: 8px; }
+.spinner { width: 28px; height: 28px; border: 3px solid #e0e0e0; border-top-color: #0d3c6e; border-radius: 50%; margin: 0 auto 12px; animation: spin 0.7s linear infinite; }
+.spinner-small { width: 14px; height: 14px; border: 2px solid #ccc; border-top-color: #00a884; border-radius: 50%; display: inline-block; vertical-align: middle; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.msg-error { background: #ffe5e5; border: 1px solid #ffaaaa; color: #a32d2d; padding: 8px 14px; font-size: 12px; display: none; }
+.msg-debug { background: #e8f0ff; border: 1px solid #c0d4ee; color: #444; padding: 6px 14px; font-size: 11px; font-family: 'Courier New', monospace; display: none; }
+
+.c-red { color: #d62c2c !important; }
+.c-orange { color: #d68a00 !important; }
+.c-green { color: #00a884 !important; }
+</style>
+</head>
+<body>
+
+<div class='hdr'>
+  <div>
+    <h1>Analizador de Viajes</h1>
+    <small>fleet_colombia &middot; Navisaf</small>
+  </div>
+  <span class='pill'>Navisaf Fleet</span>
+</div>
+
+<div class='filters'>
+  <table>
+    <tr>
+      <td style='width:24%'>
+        <label>Geocerca Origen</label>
+        <select id='sel-origen'><option value=''>- Cargando geocercas... -</option></select>
+      </td>
+      <td style='width:24%'>
+        <label>Geocerca Destino</label>
+        <select id='sel-destino'><option value=''>- Cargando geocercas... -</option></select>
+      </td>
+      <td style='width:18%'>
+        <label>Vehiculo</label>
+        <select id='sel-vehiculo'><option value=''>- Todos -</option></select>
+      </td>
+      <td style='width:11%'>
+        <label>Fecha inicio</label>
+        <input type='date' id='fecha-inicio'>
+      </td>
+      <td style='width:11%'>
+        <label>Fecha fin</label>
+        <input type='date' id='fecha-fin'>
+      </td>
+      <td style='width:6%'>
+        <label>&nbsp;</label>
+        <button class='btn' id='btn-consultar' disabled>Consultar</button>
+      </td>
+      <td style='width:6%'>
+        <label>&nbsp;</label>
+        <button class='btn-csv' id='btn-excel' disabled>&darr; Excel</button>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div class='msg-error' id='error-box'></div>
+<div class='msg-debug' id='debug-box'></div>
+
+<div id='state-area'>
+  <div class='state-init'>
+    <div class='icon'>&#9971;</div>
+    <h2>Analizador de Viajes entre Geocercas</h2>
+    <p>Selecciona origen, destino y rango de fechas para consultar.</p>
+  </div>
+</div>
+
+<div id='main-layout' style='display:none; flex:1; flex-direction:column; overflow:hidden;'>
+
+  <div class='kpis' id='summary'>
+    <table>
+      <tr>
+        <td>
+          <div class='kpi-lbl'>Viajes</div>
+          <div class='kpi-val' id='kpi-viajes'>-</div>
+        </td>
+        <td>
+          <div class='kpi-lbl'>Dist. promedio</div>
+          <div class='kpi-val' id='kpi-dist'>-<span class='kpi-unit'>km</span></div>
+        </td>
+        <td>
+          <div class='kpi-lbl'>Tiempo promedio</div>
+          <div class='kpi-val' id='kpi-tiempo'>-</div>
+        </td>
+        <td>
+          <div class='kpi-lbl'>Vel. maxima</div>
+          <div class='kpi-val' id='kpi-velmax'>-<span class='kpi-unit'>km/h</span></div>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <div class='main'>
+    <div class='panel-l'>
+      <div class='tbl-hdr'>
+        <span id='tbl-count'>Cargando...</span>
+        <span class='tbl-hint'>&darr; clic en una fila para ver la ruta</span>
+      </div>
+      <div class='tbl-wrap' id='tabla-area'>
+        <div class='loading'>
+          <div class='spinner'></div>
+          <p>Consultando datos...</p>
+        </div>
+      </div>
+    </div>
+
+    <div class='panel-r'>
+      <div class='map-card' id='map-card'>
+        <div class='title' id='map-titulo'>-</div>
+        <table>
+          <tr>
+            <td>
+              <div class='ms-lbl'>Distancia real</div>
+              <div class='ms-val' id='ms-dist'>-</div>
+            </td>
+            <td>
+              <div class='ms-lbl'>Duracion real</div>
+              <div class='ms-val' id='ms-dur'>-</div>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <div class='ms-lbl'>Vel. promedio</div>
+              <div class='ms-val' id='ms-vprom'>-</div>
+            </td>
+            <td>
+              <div class='ms-lbl'>Vel. maxima</div>
+              <div class='ms-val' id='ms-vmax'>-</div>
+            </td>
+          </tr>
+        </table>
+        <div class='compare-section'>
+          <div class='compare-title'>Comparativo vs ruta optima</div>
+          <div id='compare-content'>
+            <button class='btn-compute' id='btn-compute' onclick='calcularRutaOptima()'>Calcular ruta optima</button>
+          </div>
+        </div>
+      </div>
+      <div class='legend' id='legend'>
+        <div class='leg-row'><div class='leg-line' style='background:#0d3c6e'></div>Ruta GPS real</div>
+        <div class='leg-row'><div class='leg-line' style='background:#00a884; border-top: 2px dashed #00a884; height:0'></div>Ruta optima sugerida</div>
+      </div>
+      <div id='map-container'>
+        <div class='map-placeholder'>
+          <div>
+            <div style='font-size:36px; opacity:0.3; margin-bottom:10px'>&#9678;</div>
+            <p>Haz clic en un viaje<br>para ver la ruta GPS<br>en el mapa.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+
+
+
+
+/* ─── referencias ─── */
+var selOrigen    = document.getElementById('sel-origen');
+var selDestino   = document.getElementById('sel-destino');
+var selVehiculo  = document.getElementById('sel-vehiculo');
+var fechaInicio  = document.getElementById('fecha-inicio');
+var fechaFin     = document.getElementById('fecha-fin');
+var btnConsultar = document.getElementById('btn-consultar');
+var btnExcel     = document.getElementById('btn-excel');
+var mainLayout   = document.getElementById('main-layout');
+var stateArea    = document.getElementById('state-area');
+var tablaArea    = document.getElementById('tabla-area');
+var mapContainer = document.getElementById('map-container');
+var mapOverlay   = document.getElementById('map-overlay');
+var errorBox     = document.getElementById('error-box');
+var debugBox     = document.getElementById('debug-box');
+
+var geotabApi   = null;
+var geotabState = null;
+var allZones    = [];
+var allDevices  = [];
+var resultados  = [];
+var filaActiva  = -1;
+var geotabMap   = null; /* instancia del mapa Geotab */
+
+/* fechas por defecto */
+(function(){
+  var hoy=new Date(), h30=new Date();
+  h30.setDate(hoy.getDate()-30);
+  fechaFin.value=iso(hoy); fechaInicio.value=iso(h30);
+})();
+function iso(d){return d.toISOString().slice(0,10);}
+
+/* ════════ Punto de entrada Geotab ════════ */
+geotab.addin['transito-geocercas']=function(){
+  return {
+    initialize:function(api,state,cb){
+      geotabApi=api; geotabState=state;
+      cargarDatosIniciales();
+      if(cb)cb();
+    },
+    focus:function(){},
+    blur:function(){}
+  };
+};
+
+/* ════════════════════════════════════════
+   CARGAR GEOCERCAS + VEHÍCULOS
+════════════════════════════════════════ */
+function cargarDatosIniciales(){
+  geotabApi.call('Get',{typeName:'Zone',resultsLimit:5000},function(zonas){
+    allZones=zonas;
+    zonas.sort(function(a,b){return(a.name||'').localeCompare(b.name||'','es');});
+    llenarSel(selOrigen,zonas);
+    llenarSel(selDestino,zonas);
+
+    /* Cargar vehículos para el filtro */
+    geotabApi.call('Get',{typeName:'Device',resultsLimit:2000},function(devs){
+      allDevices=devs;
+      devs.sort(function(a,b){return(a.name||'').localeCompare(b.name||'','es');});
+      selVehiculo.innerHTML='<option value="">- Todos los vehículos -</option>';
+      devs.forEach(function(d){
+        var o=document.createElement('option');
+        o.value=d.id; o.textContent=d.name||d.id;
+        selVehiculo.appendChild(o);
+      });
+      [selOrigen,selDestino,selVehiculo,fechaInicio,fechaFin].forEach(function(el){
+        el.addEventListener('change',chkForm);
+      });
+      chkForm();
+    },function(){chkForm();});
+  },function(e){mostrarError('No se cargaron geocercas: '+e);});
+}
+
+function llenarSel(sel,zonas){
+  sel.innerHTML='<option value="">- Selecciona geocerca -</option>';
+  zonas.forEach(function(z){
+    var o=document.createElement('option');
+    o.value=z.id; o.textContent=z.name||z.id;
+    sel.appendChild(o);
+  });
+}
+
+function chkForm(){
+  btnConsultar.disabled=!(
+    selOrigen.value&&selDestino.value&&
+    selOrigen.value!==selDestino.value&&
+    fechaInicio.value&&fechaFin.value
+  );
+}
+
+/* ════════════════════════════════════════
+   CONSULTAR
+════════════════════════════════════════ */
+btnConsultar.addEventListener('click',function(){
+  ocultarError(); ocultarDebug();
+  btnExcel.disabled=true;
+  resultados=[];
+  filaActiva=-1;
+  mainLayout.style.display='none';
+  stateArea.style.display='block';
+
+  var origenId =selOrigen.value;
+  var destinoId=selDestino.value;
+  var vehiculoId=selVehiculo.value; /* '' = todos */
+  var desde=new Date(fechaInicio.value+'T00:00:00');
+  var hasta =new Date(fechaFin.value  +'T23:59:59');
+
+  var zOrigen =allZones.filter(function(z){return z.id===origenId;})[0];
+  var zDestino=allZones.filter(function(z){return z.id===destinoId;})[0];
+  if(!zOrigen||!zDestino){mostrarError('Geocercas no encontradas.');return;}
+
+  dbg('Origen: "'+zOrigen.name+'" | Destino: "'+zDestino.name+'"');
+  if(vehiculoId) dbg('Filtro vehículo: '+vehiculoId);
+
+  setCargando('Consultando posiciones GPS...');
+
+  /* Search de LogRecord - si hay filtro de vehículo lo incluimos */
+  var logSearch={
+    fromDate:desde.toISOString(),
+    toDate:  hasta.toISOString()
+  };
+  if(vehiculoId) logSearch.deviceSearch={id:vehiculoId};
+
+  geotabApi.call('Get',{
+    typeName:'LogRecord',
+    search:logSearch,
+    resultsLimit:100000
+  },function(logs){
+    dbg('LogRecords: '+logs.length);
+    if(!logs.length){
+      setCargando(null);
+      tablaArea.innerHTML="<div class='state-box'><p>Sin registros GPS en el periodo.</p></div>";
+      mostrarLayout();
+      return;
+    }
+
+    /* Agrupar por vehículo */
+    var porVeh={};
+    logs.forEach(function(l){
+      var vid=l.device?l.device.id:null;
+      if(!vid)return;
+      if(!porVeh[vid])porVeh[vid]={id:vid,nombre:l.device.name||vid,puntos:[]};
+      porVeh[vid].puntos.push(l);
+    });
+    Object.keys(porVeh).forEach(function(vid){
+      porVeh[vid].puntos.sort(function(a,b){return new Date(a.dateTime)-new Date(b.dateTime);});
+    });
+
+    dbg('Vehículos con datos: '+Object.keys(porVeh).length);
+
+    var viajes=detectarViajes(porVeh,zOrigen,zDestino);
+    dbg('Viajes detectados: '+viajes.length);
+
+    if(!viajes.length){
+      setCargando(null);
+      tablaArea.innerHTML=
+        "<div class='state-box'>"+
+        "<p>No se encontraron viajes completados entre estas geocercas.</p>"+
+        "<small>Vehículos analizados: "+Object.keys(porVeh).length+" | GPS: "+logs.length+" puntos</small>"+
+        "</div>";
+      mostrarLayout();
+      return;
+    }
+
+    /* Calcular métricas con los puntos ya disponibles */
+    resultados=viajes.map(function(v){
+      return calcMetricas(v);
+    });
+    resultados.sort(function(a,b){return a.tSalida-b.tSalida;});
+
+    renderTabla(resultados);
+    renderKPIs(resultados);
+    btnExcel.disabled=false;
+    mostrarLayout();
+    setCargando(null);
+  },function(e){mostrarError('Error GPS: '+e);});
+});
+
+/* ════════════════════════════════════════
+   DETECTAR VIAJES (point-in-polygon)
+════════════════════════════════════════ */
+function detectarViajes(porVeh,zOrigen,zDestino){
+  var viajes=[];
+  Object.keys(porVeh).forEach(function(vid){
+    var veh=porVeh[vid];
+    var pts=veh.puntos;
+    var estado='buscando_salida';
+    var enOrigen=false;
+    var tSalida=null, idxSalida=0;
+
+    for(var i=0;i<pts.length;i++){
+      var p=pts[i];
+      if(estado==='buscando_salida'){
+        if(puntoEnZona(p.latitude,p.longitude,zOrigen)){
+          enOrigen=true;
+        } else if(enOrigen){
+          tSalida=new Date(p.dateTime);
+          idxSalida=i;
+          enOrigen=false;
+          estado='buscando_llegada';
+        }
+      } else {
+        if(puntoEnZona(p.latitude,p.longitude,zDestino)){
+          viajes.push({
+            vehiculoId:  vid,
+            vehiculoNombre:veh.nombre,
+            tSalida:     tSalida,
+            tLlegada:    new Date(p.dateTime),
+            puntos:      pts.slice(idxSalida,i+1)
+          });
+          estado='buscando_salida'; enOrigen=false; tSalida=null;
+        }
+        if(puntoEnZona(p.latitude,p.longitude,zOrigen)){
+          estado='buscando_salida'; enOrigen=true; tSalida=null;
+        }
+      }
+    }
+  });
+  return viajes;
+}
+
+/* ════════════════════════════════════════
+   MÉTRICAS (desde puntos GPS ya disponibles)
+════════════════════════════════════════ */
+function calcMetricas(v){
+  var pts=v.puntos;
+  var dist=0, velMax=0, sumV=0, cnt=0;
+  for(var i=1;i<pts.length;i++){
+    dist+=haversineKm(pts[i-1].latitude,pts[i-1].longitude,pts[i].latitude,pts[i].longitude);
+    if(pts[i].speed>0){
+      if(pts[i].speed>velMax)velMax=pts[i].speed;
+      sumV+=pts[i].speed; cnt++;
+    }
+  }
+  var durMin=Math.round((v.tLlegada-v.tSalida)/60000);
+  velMax=Math.round(velMax); dist=Math.round(dist*10)/10;
+  var velProm=cnt>0?Math.round(sumV/cnt):0;
+  return {
+    vehiculoId:     v.vehiculoId,
+    vehiculoNombre: v.vehiculoNombre,
+    conductorNombre:'Sin asignar',
+    tSalida:        v.tSalida,
+    tLlegada:       v.tLlegada,
+    distanciaKm:    dist,
+    duracionMin:    durMin,
+    velPromKmh:     velProm,
+    velMaxKmh:      velMax,
+    estado:         velMax>100?'velocidad':durMin>600?'demorado':'a tiempo',
+    puntos:         v.puntos
+  };
+}
+
+/* ════════════════════════════════════════
+   RENDER TABLA - filas clicables
+════════════════════════════════════════ */
+function renderTabla(filas){
+  var rows=filas.map(function(f,idx){
+    return '<tr class="fila-viaje" data-idx="'+idx+'" onclick="seleccionarViaje('+idx+')">'+
+      '<td>'+esc(f.vehiculoNombre)+'</td>'+
+      '<td>'+fmtF(f.tSalida)+'</td>'+
+      '<td>'+fmtF(f.tLlegada)+'</td>'+
+      '<td>'+f.distanciaKm+' km</td>'+
+      '<td>'+fmtDur(f.duracionMin)+'</td>'+
+      '<td>'+f.velPromKmh+' km/h</td>'+
+      '<td>'+f.velMaxKmh+' km/h</td>'+
+      '<td>'+badge(f.estado)+'</td>'+
+    '</tr>';
+  }).join('');
+
+  tablaArea.innerHTML=
+    "<div class='table-section'>"+
+      "<div class='table-top'>"+
+        "<span>Viajes - haz clic para ver en el mapa</span>"+
+        "<span class='table-count'>"+filas.length+" viaje(s)</span>"+
+      "</div>"+
+      "<div class='table-wrap'><table>"+
+        "<thead><tr>"+
+          "<th>Vehículo</th><th>Salida</th><th>Llegada</th>"+
+          "<th>Distancia</th><th>Duración</th><th>Vel. prom.</th><th>Vel. máx.</th><th>Estado</th>"+
+        "</tr></thead>"+
+        "<tbody>"+rows+"</tbody>"+
+      "</table></div>"+
+    "</div>";
+}
+
+function badge(e){
+  var m={'a tiempo':['badge-ok','A tiempo'],'demorado':['badge-late','Demorado'],'velocidad':['badge-speed','Exceso vel.']};
+  var b=m[e]||['badge-ok',e];
+  return "<span class='badge "+b[0]+"'>"+b[1]+"</span>";
+}
+
+function renderKPIs(filas){
+  document.getElementById('kpi-viajes').textContent=filas.length;
+  document.getElementById('kpi-dist').innerHTML=
+    Math.round(filas.reduce(function(s,f){return s+f.distanciaKm;},0)/filas.length)+
+    "<span class='card-unit'>km</span>";
+  document.getElementById('kpi-tiempo').textContent=
+    fmtDur(Math.round(filas.reduce(function(s,f){return s+f.duracionMin;},0)/filas.length));
+  document.getElementById('kpi-velmax').innerHTML=
+    Math.max.apply(null,filas.map(function(f){return f.velMaxKmh;}))+
+    "<span class='card-unit'>km/h</span>";
+}
+
+/* ════════════════════════════════════════
+   SELECCIONAR VIAJE → dibujar en mapa
+════════════════════════════════════════ */
+function seleccionarViaje(idx){
+  /* Resaltar fila */
+  document.querySelectorAll('.fila-viaje').forEach(function(tr){
+    tr.classList.remove('fila-activa');
+  });
+  var trActiva=document.querySelector('[data-idx="'+idx+'"]');
+  if(trActiva)trActiva.classList.add('fila-activa');
+  filaActiva=idx;
+
+  var f=resultados[idx];
+  dibujarMapa(f);
+}
+
+/* ════════════════════════════════════════
+   DIBUJAR MAPA con API nativa de Geotab
+   
+   Geotab expone window.map (instancia de Leaflet
+   o del motor interno) cuando el Add-In está en
+   la página de mapa. Aquí construimos el trazo
+   usando la API de mapas de Geotab directamente.
+════════════════════════════════════════ */
+function dibujarMapa(f){
+  /* Actualizar panel de info */
+  document.getElementById('map-titulo').textContent=f.vehiculoNombre+' &middot; '+fmtF(f.tSalida)+' → '+fmtF(f.tLlegada);
+  document.getElementById('ms-dist').textContent=f.distanciaKm+' km';
+  document.getElementById('ms-dur').textContent=fmtDur(f.duracionMin);
+  document.getElementById('ms-vprom').textContent=f.velPromKmh+' km/h';
+  document.getElementById('ms-vmax').textContent=f.velMaxKmh+' km/h';
+  mapOverlay.style.display='block';
+
+  /* Construir mapa Leaflet embebido en el panel derecho */
+  if(!window.L){
+    cargarLeaflet(function(){ renderLeaflet(f); });
+  } else {
+    renderLeaflet(f);
+  }
+}
+
+function cargarLeaflet(cb){
+  if(window.L){cb();return;}
+  var css=document.createElement('link');
+  css.rel='stylesheet';
+  css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+  document.head.appendChild(css);
+  var s=document.createElement('script');
+  s.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+  s.onload=cb;
+  document.head.appendChild(s);
+}
+
+var leafletMap=null;
+var capasActuales=[];
+
+function renderLeaflet(f){
+  var pts=f.puntos;
+  if(!pts||!pts.length)return;
+
+  /* Limpiar o crear mapa */
+  if(leafletMap){
+    capasActuales.forEach(function(c){leafletMap.removeLayer(c);});
+    capasActuales=[];
+  } else {
+    mapContainer.innerHTML='<div id="lmap" style="width:100%;height:100%;min-height:500px"></div>';
+    leafletMap=L.map('lmap');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution:'&copy; OpenStreetMap contributors',
+      maxZoom:19
+    }).addTo(leafletMap);
+  }
+
+  /* Construir array de coordenadas */
+  var coords=pts.map(function(p){return[p.latitude,p.longitude];});
+
+  /* Línea del recorrido - color según velocidad máxima */
+  var colorLinea=f.velMaxKmh>100?'#e74c3c':f.duracionMin>600?'#e67e22':'#185fa5';
+  var polyline=L.polyline(coords,{color:colorLinea,weight:4,opacity:.85}).addTo(leafletMap);
+  capasActuales.push(polyline);
+
+  /* Marcador INICIO (verde) */
+  var iconInicio=L.divIcon({
+    html:'<div style="background:#2d8a4e;color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)">S</div>',
+    className:'',iconSize:[28,28],iconAnchor:[14,14]
+  });
+  var mInicio=L.marker(coords[0],{icon:iconInicio})
+    .bindPopup('<b>Salida</b><br>'+fmtF(f.tSalida))
+    .addTo(leafletMap);
+  capasActuales.push(mInicio);
+
+  /* Marcador DESTINO (rojo) */
+  var iconFin=L.divIcon({
+    html:'<div style="background:#c0392b;color:#fff;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)">D</div>',
+    className:'',iconSize:[28,28],iconAnchor:[14,14]
+  });
+  var mFin=L.marker(coords[coords.length-1],{icon:iconFin})
+    .bindPopup('<b>Llegada</b><br>'+fmtF(f.tLlegada)+'<br>'+f.distanciaKm+' km &middot; '+fmtDur(f.duracionMin))
+    .addTo(leafletMap);
+  capasActuales.push(mFin);
+
+  /* Puntos de alta velocidad (>100 km/h) */
+  pts.forEach(function(p){
+    if(p.speed>100){
+      var c=L.circleMarker([p.latitude,p.longitude],{
+        radius:5,color:'#e74c3c',fillColor:'#e74c3c',fillOpacity:.8,weight:1
+      }).bindPopup('Velocidad: '+Math.round(p.speed)+' km/h').addTo(leafletMap);
+      capasActuales.push(c);
+    }
+  });
+
+  /* Ajustar vista al recorrido */
+  leafletMap.fitBounds(polyline.getBounds(),{padding:[20,20]});
+}
+
+/* ════════════════════════════════════════
+   EXPORTAR CSV
+════════════════════════════════════════ */
+btnExcel.addEventListener('click',function(){
+  if(!resultados.length)return;
+  var on=selOrigen.options[selOrigen.selectedIndex].text;
+  var dn=selDestino.options[selDestino.selectedIndex].text;
+  var cab=['Vehículo','Salida origen','Llegada destino','Distancia (km)',
+           'Duración (min)','Vel. prom. (km/h)','Vel. máx. (km/h)','Estado'];
+  var rows=resultados.map(function(f){
+    return[f.vehiculoNombre,fmtCSV(f.tSalida),fmtCSV(f.tLlegada),
+           f.distanciaKm,f.duracionMin,f.velPromKmh,f.velMaxKmh,f.estado];
+  });
+  var csv=['Reporte tránsito: '+on+' → '+dn,
+           'Periodo: '+fechaInicio.value+' al '+fechaFin.value,
+           '',cab.join(',')]
+    .concat(rows.map(function(r){
+      return r.map(function(v){return'"'+String(v).replace(/"/g,'""')+'"';}).join(',');
+    })).join('\r\n');
+  var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download='transito_'+fechaInicio.value+'_'+fechaFin.value+'.csv';
+  a.click();URL.revokeObjectURL(url);
+});
+
+/* ════════════════════════════════════════
+   GEOMETRÍA
+════════════════════════════════════════ */
+function puntoEnZona(lat,lng,zona){
+  if(zona.radius&&zona.radius>0){
+    var c=centroZona(zona);
+    return c&&haversineM(lat,lng,c.lat,c.lng)<=zona.radius;
+  }
+  if(!zona.points||zona.points.length<3)return false;
+  return raycast(lat,lng,zona.points);
+}
+function centroZona(z){
+  if(!z.points||!z.points.length)return null;
+  var sLat=0,sLng=0;
+  z.points.forEach(function(p){sLat+=p.y;sLng+=p.x;});
+  return{lat:sLat/z.points.length,lng:sLng/z.points.length};
+}
+function raycast(lat,lng,pts){
+  var inside=false,n=pts.length;
+  for(var i=0,j=n-1;i<n;j=i++){
+    var xi=pts[i].x,yi=pts[i].y,xj=pts[j].x,yj=pts[j].y;
+    if(((yi>lat)!==(yj>lat))&&(lng<(xj-xi)*(lat-yi)/(yj-yi)+xi))inside=!inside;
+  }
+  return inside;
+}
+function haversineM(la1,lo1,la2,lo2){
+  var R=6371000,dL=rd(la2-la1),dO=rd(lo2-lo1);
+  var a=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(rd(la1))*Math.cos(rd(la2))*Math.sin(dO/2)*Math.sin(dO/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function haversineKm(la1,lo1,la2,lo2){return haversineM(la1,lo1,la2,lo2)/1000;}
+function rd(d){return d*Math.PI/180;}
+
+/* ════════════════════════════════════════
+   UTILIDADES UI
+════════════════════════════════════════ */
+function mostrarLayout(){
+  stateArea.style.display='none';
+  mainLayout.style.display='grid';
+}
+function setCargando(msg){
+  if(msg){
+    stateArea.style.display='block';
+    mainLayout.style.display='none';
+    stateArea.innerHTML="<div style='padding:20px'><div class='state-box'><div class='spinner'></div><p>"+msg+"</p></div></div>";
+  }
+}
+function fmtF(d){
+  if(!d||isNaN(d))return'-';
+  var M=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return pad(d.getDate())+' '+M[d.getMonth()]+' '+pad(d.getHours())+':'+pad(d.getMinutes());
+}
+function fmtCSV(d){return d?d.toLocaleString('es-CO'):'';}
+function fmtDur(m){
+  if(isNaN(m)||m===null)return'-';
+  var h=Math.floor(m/60);
+  return h>0?h+'h '+pad(m%60)+'m':m+'m';
+}
+function pad(n){return String(n).padStart(2,'0');}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function mostrarError(msg){errorBox.textContent='! '+msg;errorBox.style.display='block';}
+function ocultarError(){errorBox.style.display='none';}
+function dbg(msg){debugBox.style.display='block';debugBox.innerHTML+='ℹ '+msg+'<br>';}
+function ocultarDebug(){debugBox.style.display='none';debugBox.innerHTML='';}
+
+/* ── Overrides de UI para el nuevo diseño ── */
+
+function mostrarLayout(){
+  document.getElementById('state-area').style.display='none';
+  document.getElementById('main-layout').style.display='grid';
+}
+
+function setCargando(msg){
+  if(msg){
+    document.getElementById('state-area').style.display='none';
+    document.getElementById('main-layout').style.display='grid';
+    document.getElementById('tabla-area').innerHTML=
+      "<div class='empty-state'><div class='spinner'></div><p>"+msg+"</p></div>";
+  }
+}
+
+/* Override renderTabla para nuevo diseño */
+var _renderTablaOrig = renderTabla;
+renderTabla = function(filas){
+  document.getElementById('tbl-count').innerHTML=
+    'Viajes encontrados &nbsp;<b style="color:var(--accent)">'+filas.length+'</b>';
+
+  if(!filas.length){
+    document.getElementById('tabla-area').innerHTML=
+      "<div class='empty-state'><div class='icon'>&#9906;</div><p>No se encontraron viajes.<br><small>Ajusta las geocercas o el rango de fechas.</small></p></div>";
+    return;
+  }
+
+  var rows=filas.map(function(f,idx){
+    var bc=f.estado==='a tiempo'?'b-ok':f.estado==='demorado'?'b-late':'b-speed';
+    var bl=f.estado==='a tiempo'?'A tiempo':f.estado==='demorado'?'Demorado':'Exceso vel.';
+    var vmColor=f.velMaxKmh>100?'color:#ff6b74':f.velMaxKmh>80?'color:#f5a623':'color:var(--text2)';
+    return '<tr class="row-trip'+(idx===0?' active':'')+'" data-idx="'+idx+'" onclick="seleccionarViaje('+idx+')">'+
+      '<td class="td-veh">'+esc(f.vehiculoNombre)+'</td>'+
+      '<td class="td-mono">'+fmtF(f.tSalida)+'</td>'+
+      '<td class="td-mono">'+fmtF(f.tLlegada)+'</td>'+
+      '<td class="td-dist">'+f.distanciaKm+' km</td>'+
+      '<td class="td-mono">'+fmtDur(f.duracionMin)+'</td>'+
+      '<td class="td-vel" style="'+vmColor+'">'+f.velPromKmh+' km/h</td>'+
+      '<td class="td-vel" style="'+vmColor+'">'+f.velMaxKmh+' km/h</td>'+
+      '<td><span class="badge '+bc+'">'+bl+'</span></td>'+
+    '</tr>';
+  }).join('');
+
+  document.getElementById('tabla-area').innerHTML=
+    '<table>'+
+      '<thead><tr>'+
+        '<th>Vehículo</th>'+
+        '<th>Salida</th>'+
+        '<th>Llegada</th>'+
+        '<th>Distancia</th>'+
+        '<th>Duración</th>'+
+        '<th>Vel. prom.</th>'+
+        '<th>Vel. máx.</th>'+
+        '<th>Estado</th>'+
+      '</tr></thead>'+
+      '<tbody>'+rows+'</tbody>'+
+    '</table>';
+};
+
+/* Override KPIs */
+var _renderKPIsOrig = renderKPIs;
+renderKPIs = function(filas){
+  document.getElementById('kpi-viajes').textContent=filas.length;
+  var avgDist=Math.round(filas.reduce(function(s,f){return s+f.distanciaKm;},0)/filas.length);
+  document.getElementById('kpi-dist').innerHTML=avgDist+"<span class='kpi-unit'>km</span>";
+  document.getElementById('kpi-tiempo').textContent=fmtDur(Math.round(filas.reduce(function(s,f){return s+f.duracionMin;},0)/filas.length));
+  var mv=Math.max.apply(null,filas.map(function(f){return f.velMaxKmh;}));
+  document.getElementById('kpi-velmax').innerHTML=mv+"<span class='kpi-unit'>km/h</span>";
+};
+
+/* Override seleccionarViaje para mostrar card y leyenda del mapa */
+var _selOrig = seleccionarViaje;
+seleccionarViaje = function(idx){
+  document.querySelectorAll('.row-trip').forEach(function(tr){tr.classList.remove('active');});
+  var trActiva=document.querySelector('[data-idx="'+idx+'"]');
+  if(trActiva){trActiva.classList.add('active');trActiva.scrollIntoView({block:'nearest',behavior:'smooth'});}
+  filaActiva=idx;
+  var f=resultados[idx];
+
+  /* Actualizar card mapa */
+  document.getElementById('map-titulo').textContent=esc(f.vehiculoNombre)+' &middot; '+fmtF(f.tSalida);
+  document.getElementById('ms-dist').innerHTML=f.distanciaKm+"<span class='map-stat-unit'> km</span>";
+  document.getElementById('ms-dur').textContent=fmtDur(f.duracionMin);
+  document.getElementById('ms-vprom').innerHTML=f.velPromKmh+"<span class='map-stat-unit'> km/h</span>";
+  var vmEl=document.getElementById('ms-vmax');
+  vmEl.style.color=f.velMaxKmh>100?'#ff6b74':f.velMaxKmh>80?'#f5a623':'var(--accent)';
+  vmEl.innerHTML=f.velMaxKmh+"<span class='map-stat-unit'> km/h</span>";
+
+  document.getElementById('map-card').style.display='block';
+  document.getElementById('map-legend').style.display='block';
+
+  dibujarMapa(f);
+};
+
+/* Override dibujarMapa: Leaflet con estilos oscuros */
+dibujarMapa = function(f){
+  var pts=f.puntos;
+  if(!pts||!pts.length)return;
+
+  function renderLeaflet(f){
+    var pts=f.puntos;
+    var coords=pts.map(function(p){return[p.latitude,p.longitude];});
+
+    if(!window._lmap){
+      document.getElementById('map-container').innerHTML=
+        '<div id="lmap" style="width:100%;height:100%;min-height:460px"></div>';
+      window._lmap=L.map('lmap',{zoomControl:true,attributionControl:false});
+
+      /* Tiles oscuros */
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+        maxZoom:19,subdomains:'abcd'
+      }).addTo(window._lmap);
+
+      L.control.attribution({prefix:false})
+        .addAttribution('&copy; OpenStreetMap &copy; CARTO')
+        .addTo(window._lmap);
+    }
+
+    /* Limpiar capas anteriores */
+    if(window._lmap_layers){
+      window._lmap_layers.forEach(function(c){window._lmap.removeLayer(c);});
+    }
+    window._lmap_layers=[];
+
+    /* Sombra de la ruta */
+    var shadow=L.polyline(coords,{color:'#00d4aa',weight:10,opacity:.12}).addTo(window._lmap);
+    window._lmap_layers.push(shadow);
+
+    /* Ruta principal */
+    var colorRuta=f.velMaxKmh>100?'#e8404a':f.duracionMin>600?'#f5a623':'#00d4aa';
+    var ruta=L.polyline(coords,{color:colorRuta,weight:3.5,opacity:.9}).addTo(window._lmap);
+    window._lmap_layers.push(ruta);
+
+    /* Marcador inicio */
+    var mkS=L.divIcon({
+      html:'<div style="width:28px;height:28px;background:#00d4aa;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#0a1628;border:2px solid rgba(255,255,255,.6);box-shadow:0 0 12px rgba(0,212,170,.6),0 2px 6px rgba(0,0,0,.4);">S</div>',
+      className:'',iconSize:[28,28],iconAnchor:[14,14]
+    });
+    var mS=L.marker(coords[0],{icon:mkS})
+      .bindPopup('<div style="font-family:IBM Plex Sans,sans-serif;font-size:12px"><b>Salida origen</b><br>'+fmtF(f.tSalida)+'</div>')
+      .addTo(window._lmap);
+    window._lmap_layers.push(mS);
+
+    /* Marcador destino */
+    var mkD=L.divIcon({
+      html:'<div style="width:28px;height:28px;background:#e8404a;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;border:2px solid rgba(255,255,255,.6);box-shadow:0 0 12px rgba(232,64,74,.6),0 2px 6px rgba(0,0,0,.4);">D</div>',
+      className:'',iconSize:[28,28],iconAnchor:[14,14]
+    });
+    var mD=L.marker(coords[coords.length-1],{icon:mkD})
+      .bindPopup('<div style="font-family:IBM Plex Sans,sans-serif;font-size:12px"><b>Llegada destino</b><br>'+fmtF(f.tLlegada)+'<br>'+f.distanciaKm+' km &middot; '+fmtDur(f.duracionMin)+'</div>')
+      .addTo(window._lmap);
+    window._lmap_layers.push(mD);
+
+    /* Puntos exceso velocidad */
+    pts.forEach(function(p){
+      if(p.speed>100){
+        var c=L.circleMarker([p.latitude,p.longitude],{
+          radius:5,color:'#e8404a',fillColor:'#e8404a',
+          fillOpacity:.85,weight:1.5
+        }).bindPopup('<div style="font-family:IBM Plex Mono,monospace;font-size:11px">! '+Math.round(p.speed)+' km/h</div>')
+         .addTo(window._lmap);
+        window._lmap_layers.push(c);
+      }
+    });
+
+    window._lmap.fitBounds(ruta.getBounds(),{padding:[30,30]});
+  }
+
+  if(!window.L){
+    var css=document.createElement('link');
+    css.rel='stylesheet';
+    css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(css);
+    var sc=document.createElement('script');
+    sc.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    sc.onload=function(){renderLeaflet(f);};
+    document.head.appendChild(sc);
+  } else {
+    renderLeaflet(f);
+  }
+};
+
+/* Override errores/debug */
+mostrarError = function(msg){
+  var el=document.getElementById('error-box');
+  el.textContent='! '+msg; el.style.display='block';
+};
+ocultarError = function(){document.getElementById('error-box').style.display='none';};
+dbg = function(msg){var el=document.getElementById('debug-box');el.style.display='block';el.innerHTML+='ℹ '+msg+'<br>';};
+ocultarDebug = function(){var el=document.getElementById('debug-box');el.style.display='none';el.innerHTML='';};
+mostrarVacio = function(det){
+  document.getElementById('tbl-count').innerHTML='Sin resultados';
+  document.getElementById('tabla-area').innerHTML=
+    "<div class='empty-state'><div class='icon'>&#9906;</div><p>No se encontraron viajes.</p><small>"+(det||'')+"</small></div>";
+};
+
+
+/* ══ Overrides para nuevo diseño ══ */
+
+function mostrarLayout(){
+  document.getElementById('state-area').style.display='none';
+  document.getElementById('main-layout').style.display='grid';
+}
+
+function setCargando(msg){
+  if(msg){
+    document.getElementById('state-area').style.display='none';
+    document.getElementById('main-layout').style.display='grid';
+    document.getElementById('tabla-area').innerHTML=
+      "<div class='empty-state'><div class='spinner'></div><p>"+msg+"</p></div>";
+  }
+}
+
+renderTabla = function(filas){
+  document.getElementById('tbl-count').innerHTML=
+    'Viajes encontrados &nbsp;<b>'+filas.length+'</b>';
+
+  if(!filas.length){
+    document.getElementById('tabla-area').innerHTML=
+      "<div class='empty-state'><div class='icon'>&#128269;</div><p>No se encontraron viajes.<br><small>Ajusta las geocercas o el rango de fechas.</small></p></div>";
+    return;
+  }
+
+  var rows=filas.map(function(f,idx){
+    var bc=f.estado==='a tiempo'?'b-ok':f.estado==='demorado'?'b-late':'b-speed';
+    var bl=f.estado==='a tiempo'?'A tiempo':f.estado==='demorado'?'Demorado':'Exceso vel.';
+    var vmColor=f.velMaxKmh>100?'color:#ff6b74':f.velMaxKmh>80?'color:#f5a623':'color:#7a90b0';
+    return '<tr class="row-trip'+(idx===0?' active':'')+'" data-idx="'+idx+'" onclick="seleccionarViaje('+idx+')">'+
+      '<td class="td-veh">'+esc(f.vehiculoNombre)+'</td>'+
+      '<td class="td-mono">'+fmtF(f.tSalida)+'</td>'+
+      '<td class="td-mono">'+fmtF(f.tLlegada)+'</td>'+
+      '<td class="td-dist">'+f.distanciaKm+' km</td>'+
+      '<td class="td-mono">'+fmtDur(f.duracionMin)+'</td>'+
+      '<td class="td-vel" style="'+vmColor+'">'+f.velPromKmh+' km/h</td>'+
+      '<td class="td-vel" style="'+vmColor+'">'+f.velMaxKmh+' km/h</td>'+
+      '<td><span class="badge '+bc+'">'+bl+'</span></td>'+
+    '</tr>';
+  }).join('');
+
+  document.getElementById('tabla-area').innerHTML=
+    '<table>'+
+      '<thead><tr>'+
+        '<th>Veh&iacute;culo</th>'+
+        '<th>Salida</th>'+
+        '<th>Llegada</th>'+
+        '<th>Distancia</th>'+
+        '<th>Duraci&oacute;n</th>'+
+        '<th>Vel. prom.</th>'+
+        '<th>Vel. m&aacute;x.</th>'+
+        '<th>Estado</th>'+
+      '</tr></thead>'+
+      '<tbody>'+rows+'</tbody>'+
+    '</table>';
+};
+
+renderKPIs = function(filas){
+  document.getElementById('kpi-viajes').textContent=filas.length;
+  var avgDist=Math.round(filas.reduce(function(s,f){return s+f.distanciaKm;},0)/filas.length);
+  document.getElementById('kpi-dist').innerHTML=avgDist+"<span class='kpi-unit'>km</span>";
+  document.getElementById('kpi-tiempo').textContent=fmtDur(Math.round(filas.reduce(function(s,f){return s+f.duracionMin;},0)/filas.length));
+  var mv=Math.max.apply(null,filas.map(function(f){return f.velMaxKmh;}));
+  document.getElementById('kpi-velmax').innerHTML=mv+"<span class='kpi-unit'>km/h</span>";
+};
+
+seleccionarViaje = function(idx){
+  document.querySelectorAll('.row-trip').forEach(function(tr){tr.classList.remove('active');});
+  var trActiva=document.querySelector('[data-idx="'+idx+'"]');
+  if(trActiva){trActiva.classList.add('active');trActiva.scrollIntoView({block:'nearest',behavior:'smooth'});}
+  filaActiva=idx;
+  var f=resultados[idx];
+
+  document.getElementById('map-titulo').textContent=esc(f.vehiculoNombre)+' \u00B7 '+fmtF(f.tSalida);
+  document.getElementById('ms-dist').innerHTML=f.distanciaKm+"<span class='map-stat-unit'> km</span>";
+  document.getElementById('ms-dur').textContent=fmtDur(f.duracionMin);
+  document.getElementById('ms-vprom').innerHTML=f.velPromKmh+"<span class='map-stat-unit'> km/h</span>";
+  var vmEl=document.getElementById('ms-vmax');
+  vmEl.style.color=f.velMaxKmh>100?'#ff6b74':f.velMaxKmh>80?'#f5a623':'#00d4aa';
+  vmEl.innerHTML=f.velMaxKmh+"<span class='map-stat-unit'> km/h</span>";
+
+  document.getElementById('map-card').style.display='block';
+  document.getElementById('map-legend').style.display='block';
+
+  dibujarMapa(f);
+};
+
+dibujarMapa = function(f){
+  var pts=f.puntos;
+  if(!pts||!pts.length)return;
+
+  function renderLeaflet(f){
+    var pts=f.puntos;
+    var coords=pts.map(function(p){return[p.latitude,p.longitude];});
+
+    if(!window._lmap){
+      document.getElementById('map-container').innerHTML=
+        '<div id="lmap" style="width:100%;height:100%;min-height:460px"></div>';
+      window._lmap=L.map('lmap',{zoomControl:true,attributionControl:false});
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+        maxZoom:19,subdomains:'abcd'
+      }).addTo(window._lmap);
+
+      L.control.attribution({prefix:false})
+        .addAttribution('&copy; OpenStreetMap &copy; CARTO')
+        .addTo(window._lmap);
+    }
+
+    if(window._lmap_layers){
+      window._lmap_layers.forEach(function(c){window._lmap.removeLayer(c);});
+    }
+    window._lmap_layers=[];
+
+    var shadow=L.polyline(coords,{color:'#00d4aa',weight:10,opacity:.12}).addTo(window._lmap);
+    window._lmap_layers.push(shadow);
+
+    var colorRuta=f.velMaxKmh>100?'#e8404a':f.duracionMin>600?'#f5a623':'#00d4aa';
+    var ruta=L.polyline(coords,{color:colorRuta,weight:3.5,opacity:.9}).addTo(window._lmap);
+    window._lmap_layers.push(ruta);
+
+    var mkS=L.divIcon({
+      html:'<div style="width:28px;height:28px;background:#00d4aa;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#0a1628;border:2px solid rgba(255,255,255,.6);box-shadow:0 0 12px rgba(0,212,170,.6),0 2px 6px rgba(0,0,0,.4);">S</div>',
+      className:'',iconSize:[28,28],iconAnchor:[14,14]
+    });
+    var mS=L.marker(coords[0],{icon:mkS})
+      .bindPopup('<b>Salida origen</b><br>'+fmtF(f.tSalida))
+      .addTo(window._lmap);
+    window._lmap_layers.push(mS);
+
+    var mkD=L.divIcon({
+      html:'<div style="width:28px;height:28px;background:#e8404a;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;border:2px solid rgba(255,255,255,.6);box-shadow:0 0 12px rgba(232,64,74,.6),0 2px 6px rgba(0,0,0,.4);">D</div>',
+      className:'',iconSize:[28,28],iconAnchor:[14,14]
+    });
+    var mD=L.marker(coords[coords.length-1],{icon:mkD})
+      .bindPopup('<b>Llegada destino</b><br>'+fmtF(f.tLlegada)+'<br>'+f.distanciaKm+' km \u00B7 '+fmtDur(f.duracionMin))
+      .addTo(window._lmap);
+    window._lmap_layers.push(mD);
+
+    pts.forEach(function(p){
+      if(p.speed>100){
+        var c=L.circleMarker([p.latitude,p.longitude],{
+          radius:5,color:'#e8404a',fillColor:'#e8404a',
+          fillOpacity:.85,weight:1.5
+        }).bindPopup('\u26A0 '+Math.round(p.speed)+' km/h')
+         .addTo(window._lmap);
+        window._lmap_layers.push(c);
+      }
+    });
+
+    window._lmap.fitBounds(ruta.getBounds(),{padding:[30,30]});
+  }
+
+  if(!window.L){
+    var css=document.createElement('link');
+    css.rel='stylesheet';
+    css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(css);
+    var sc=document.createElement('script');
+    sc.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    sc.onload=function(){renderLeaflet(f);};
+    document.head.appendChild(sc);
+  } else {
+    renderLeaflet(f);
+  }
+};
+
+mostrarError = function(msg){
+  var el=document.getElementById('error-box');
+  el.textContent='\u26A0 '+msg; el.style.display='block';
+};
+ocultarError = function(){document.getElementById('error-box').style.display='none';};
+dbg = function(msg){var el=document.getElementById('debug-box');el.style.display='block';el.innerHTML+='\u2139 '+msg+'<br>';};
+ocultarDebug = function(){var el=document.getElementById('debug-box');el.style.display='none';el.innerHTML='';};
+mostrarVacio = function(det){
+  document.getElementById('tbl-count').innerHTML='Sin resultados';
+  document.getElementById('tabla-area').innerHTML=
+    "<div class='empty-state'><div class='icon'>&#128269;</div><p>No se encontraron viajes.</p><small>"+(det||'')+"</small></div>";
+};
+
+
+/* ══ Overrides para nuevo diseño ══ */
+
+function mostrarLayout(){
+  document.getElementById('state-area').style.display='none';
+  var ml=document.getElementById('main-layout');
+  ml.style.display='flex';
+}
+
+function setCargando(msg){
+  if(msg){
+    document.getElementById('state-area').style.display='none';
+    document.getElementById('main-layout').style.display='flex';
+    document.getElementById('tabla-area').innerHTML=
+      "<div class='loading'><div class='spinner'></div><p>"+msg+"</p></div>";
+  }
+}
+
+renderTabla = function(filas){
+  document.getElementById('tbl-count').innerHTML='Viajes encontrados: <b>'+filas.length+'</b>';
+
+  if(!filas.length){
+    document.getElementById('tabla-area').innerHTML=
+      "<div class='empty'><div class='icon'>&#9906;</div><p>No se encontraron viajes.</p></div>";
+    return;
+  }
+
+  var rows=filas.map(function(f,idx){
+    var bc=f.estado==='a tiempo'?'b-ok':f.estado==='demorado'?'b-late':'b-speed';
+    var bl=f.estado==='a tiempo'?'A tiempo':f.estado==='demorado'?'Demorado':'Exceso vel.';
+    var velCls=f.velMaxKmh>100?'c-red':f.velMaxKmh>80?'c-orange':'';
+    var activeCls=idx===0?' active':'';
+    return '<tr class="'+activeCls+'" data-idx="'+idx+'" onclick="seleccionarViaje('+idx+')">'+
+      '<td class="td-veh">'+esc(f.vehiculoNombre)+'</td>'+
+      '<td class="td-time">'+fmtF(f.tSalida)+'</td>'+
+      '<td class="td-time">'+fmtF(f.tLlegada)+'</td>'+
+      '<td class="td-dist">'+f.distanciaKm+' km</td>'+
+      '<td class="td-time">'+fmtDur(f.duracionMin)+'</td>'+
+      '<td class="td-vel '+velCls+'">'+f.velPromKmh+' km/h</td>'+
+      '<td class="td-vel '+velCls+'">'+f.velMaxKmh+' km/h</td>'+
+      '<td><span class="badge '+bc+'">'+bl+'</span></td>'+
+    '</tr>';
+  }).join('');
+
+  document.getElementById('tabla-area').innerHTML=
+    '<table class="tbl-data">'+
+      '<thead><tr>'+
+        '<th>Vehículo</th>'+
+        '<th>Salida</th>'+
+        '<th>Llegada</th>'+
+        '<th>Distancia</th>'+
+        '<th>Duración</th>'+
+        '<th>Vel. prom.</th>'+
+        '<th>Vel. máx.</th>'+
+        '<th>Estado</th>'+
+      '</tr></thead>'+
+      '<tbody>'+rows+'</tbody>'+
+    '</table>';
+};
+
+renderKPIs = function(filas){
+  document.getElementById('kpi-viajes').textContent=filas.length;
+  var avgDist=Math.round(filas.reduce(function(s,f){return s+f.distanciaKm;},0)/filas.length);
+  document.getElementById('kpi-dist').innerHTML=avgDist+"<span class='kpi-unit'>km</span>";
+  document.getElementById('kpi-tiempo').textContent=fmtDur(Math.round(filas.reduce(function(s,f){return s+f.duracionMin;},0)/filas.length));
+  var mv=Math.max.apply(null,filas.map(function(f){return f.velMaxKmh;}));
+  document.getElementById('kpi-velmax').innerHTML=mv+"<span class='kpi-unit'>km/h</span>";
+};
+
+seleccionarViaje = function(idx){
+  document.querySelectorAll('.tbl-data tbody tr').forEach(function(tr){tr.classList.remove('active');});
+  var trActiva=document.querySelector('[data-idx="'+idx+'"]');
+  if(trActiva){trActiva.classList.add('active');trActiva.scrollIntoView({block:'nearest',behavior:'smooth'});}
+  filaActiva=idx;
+  var f=resultados[idx];
+
+  document.getElementById('map-titulo').textContent=f.vehiculoNombre+' &middot; '+fmtF(f.tSalida);
+  document.getElementById('ms-dist').textContent=f.distanciaKm+' km';
+  document.getElementById('ms-dur').textContent=fmtDur(f.duracionMin);
+  document.getElementById('ms-vprom').textContent=f.velPromKmh+' km/h';
+  var vmEl=document.getElementById('ms-vmax');
+  vmEl.style.color=f.velMaxKmh>100?'#d62c2c':f.velMaxKmh>80?'#d68a00':'#00a884';
+  vmEl.textContent=f.velMaxKmh+' km/h';
+
+  document.getElementById('map-card').style.display='block';
+
+  dibujarMapa(f);
+};
+
+dibujarMapa = function(f){
+  var pts=f.puntos;
+  if(!pts||!pts.length)return;
+
+  function renderLeaflet(f){
+    var pts=f.puntos;
+    var coords=pts.map(function(p){return[p.latitude,p.longitude];});
+
+    if(!window._lmap){
+      document.getElementById('map-container').innerHTML='<div id="lmap" style="width:100%;height:100%;"></div>';
+      window._lmap=L.map('lmap',{zoomControl:true,attributionControl:false});
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+        maxZoom:19,attribution:'© OpenStreetMap'
+      }).addTo(window._lmap);
+    }
+
+    if(window._lmap_layers){
+      window._lmap_layers.forEach(function(c){window._lmap.removeLayer(c);});
+    }
+    window._lmap_layers=[];
+
+    var colorRuta=f.velMaxKmh>100?'#d62c2c':f.duracionMin>600?'#d68a00':'#0d3c6e';
+    var ruta=L.polyline(coords,{color:colorRuta,weight:4,opacity:0.85}).addTo(window._lmap);
+    window._lmap_layers.push(ruta);
+
+    var mkS=L.divIcon({
+      html:'<div style="width:30px;height:30px;background:#00a884;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);">S</div>',
+      className:'',iconSize:[30,30],iconAnchor:[15,15]
+    });
+    var mS=L.marker(coords[0],{icon:mkS}).bindPopup('<b>Salida origen</b><br>'+fmtF(f.tSalida)).addTo(window._lmap);
+    window._lmap_layers.push(mS);
+
+    var mkD=L.divIcon({
+      html:'<div style="width:30px;height:30px;background:#d62c2c;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);">D</div>',
+      className:'',iconSize:[30,30],iconAnchor:[15,15]
+    });
+    var mD=L.marker(coords[coords.length-1],{icon:mkD}).bindPopup('<b>Llegada destino</b><br>'+fmtF(f.tLlegada)+'<br>'+f.distanciaKm+' km &middot; '+fmtDur(f.duracionMin)).addTo(window._lmap);
+    window._lmap_layers.push(mD);
+
+    pts.forEach(function(p){
+      if(p.speed>100){
+        var c=L.circleMarker([p.latitude,p.longitude],{
+          radius:5,color:'#d62c2c',fillColor:'#d62c2c',fillOpacity:0.85,weight:1.5
+        }).bindPopup('! '+Math.round(p.speed)+' km/h').addTo(window._lmap);
+        window._lmap_layers.push(c);
+      }
+    });
+
+    window._lmap.fitBounds(ruta.getBounds(),{padding:[30,30]});
+  }
+
+  if(!window.L){
+    var css=document.createElement('link');
+    css.rel='stylesheet';
+    css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(css);
+    var sc=document.createElement('script');
+    sc.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    sc.onload=function(){renderLeaflet(f);};
+    document.head.appendChild(sc);
+  } else {
+    renderLeaflet(f);
+  }
+};
+
+mostrarError = function(msg){
+  var el=document.getElementById('error-box');
+  el.textContent='! '+msg; el.style.display='block';
+};
+ocultarError = function(){document.getElementById('error-box').style.display='none';};
+dbg = function(msg){var el=document.getElementById('debug-box');el.style.display='block';el.innerHTML+='ℹ '+msg+' &middot; ';};
+ocultarDebug = function(){var el=document.getElementById('debug-box');el.style.display='none';el.innerHTML='';};
+mostrarVacio = function(det){
+  document.getElementById('tbl-count').innerHTML='Sin resultados';
+  document.getElementById('tabla-area').innerHTML=
+    "<div class='empty'><div class='icon'>&#9906;</div><p>No se encontraron viajes.</p><small style='color:#aaa;font-size:11px'>"+(det||'')+"</small></div>";
+};
+
+
+/* OVERRIDES y NUEVAS FUNCIONALIDADES v2.1 */
+
+function mostrarLayout(){
+  document.getElementById('state-area').style.display='none';
+  document.getElementById('main-layout').style.display='flex';
+}
+
+function setCargando(msg){
+  if(msg){
+    document.getElementById('state-area').style.display='none';
+    document.getElementById('main-layout').style.display='flex';
+    document.getElementById('tabla-area').innerHTML=
+      "<div class='loading'><div class='spinner'></div><p>"+msg+"</p></div>";
+  }
+}
+
+renderTabla = function(filas){
+  document.getElementById('tbl-count').innerHTML='Viajes encontrados: <b>'+filas.length+'</b>';
+
+  if(!filas.length){
+    document.getElementById('tabla-area').innerHTML=
+      "<div class='empty'><div class='icon'>&#9906;</div><p>No se encontraron viajes.</p></div>";
+    return;
+  }
+
+  var rows=filas.map(function(f,idx){
+    var bc=f.estado==='a tiempo'?'b-ok':f.estado==='demorado'?'b-late':'b-speed';
+    var bl=f.estado==='a tiempo'?'A tiempo':f.estado==='demorado'?'Demorado':'Exceso vel.';
+    var velCls=f.velMaxKmh>100?'c-red':f.velMaxKmh>80?'c-orange':'';
+    var activeCls=idx===0?' active':'';
+    return '<tr class="'+activeCls+'" data-idx="'+idx+'" onclick="seleccionarViaje('+idx+')">'+
+      '<td style="text-align:center; color:#999; font-size:10px">'+(idx+1)+'</td>'+
+      '<td class="td-veh">'+esc(f.vehiculoNombre)+'</td>'+
+      '<td class="td-time">'+fmtF(f.tSalida)+'</td>'+
+      '<td class="td-time">'+fmtF(f.tLlegada)+'</td>'+
+      '<td class="td-dist">'+f.distanciaKm+' km</td>'+
+      '<td class="td-time">'+fmtDur(f.duracionMin)+'</td>'+
+      '<td class="td-vel '+velCls+'">'+f.velPromKmh+' km/h</td>'+
+      '<td class="td-vel '+velCls+'">'+f.velMaxKmh+' km/h</td>'+
+      '<td><span class="badge '+bc+'">'+bl+'</span></td>'+
+    '</tr>';
+  }).join('');
+
+  document.getElementById('tabla-area').innerHTML=
+    '<table class="tbl-data">'+
+      '<thead><tr>'+
+        '<th style="width:30px; text-align:center">#</th>'+
+        '<th>Vehiculo</th>'+
+        '<th>Salida</th>'+
+        '<th>Llegada</th>'+
+        '<th>Distancia</th>'+
+        '<th>Duracion</th>'+
+        '<th>Vel. prom.</th>'+
+        '<th>Vel. max.</th>'+
+        '<th>Estado</th>'+
+      '</tr></thead>'+
+      '<tbody>'+rows+'</tbody>'+
+    '</table>';
+};
+
+renderKPIs = function(filas){
+  document.getElementById('kpi-viajes').textContent=filas.length;
+  var avgDist=Math.round(filas.reduce(function(s,f){return s+f.distanciaKm;},0)/filas.length);
+  document.getElementById('kpi-dist').innerHTML=avgDist+"<span class='kpi-unit'>km</span>";
+  document.getElementById('kpi-tiempo').textContent=fmtDur(Math.round(filas.reduce(function(s,f){return s+f.duracionMin;},0)/filas.length));
+  var mv=Math.max.apply(null,filas.map(function(f){return f.velMaxKmh;}));
+  document.getElementById('kpi-velmax').innerHTML=mv+"<span class='kpi-unit'>km/h</span>";
+};
+
+seleccionarViaje = function(idx){
+  document.querySelectorAll('.tbl-data tbody tr').forEach(function(tr){tr.classList.remove('active');});
+  var trActiva=document.querySelector('[data-idx="'+idx+'"]');
+  if(trActiva){trActiva.classList.add('active');trActiva.scrollIntoView({block:'nearest',behavior:'smooth'});}
+  filaActiva=idx;
+  var f=resultados[idx];
+
+  document.getElementById('map-titulo').textContent=f.vehiculoNombre+' - '+fmtF(f.tSalida);
+  document.getElementById('ms-dist').textContent=f.distanciaKm+' km';
+  document.getElementById('ms-dur').textContent=fmtDur(f.duracionMin);
+  document.getElementById('ms-vprom').textContent=f.velPromKmh+' km/h';
+  var vmEl=document.getElementById('ms-vmax');
+  vmEl.style.color=f.velMaxKmh>100?'#d62c2c':f.velMaxKmh>80?'#d68a00':'#00a884';
+  vmEl.textContent=f.velMaxKmh+' km/h';
+
+  /* Resetear seccion de comparacion */
+  if(f.rutaOptima){
+    /* Ya se calculo antes - mostrar resultados cached */
+    mostrarComparacion(f);
+  } else {
+    document.getElementById('compare-content').innerHTML=
+      "<button class='btn-compute' onclick='calcularRutaOptima()'>Calcular ruta optima</button>";
+  }
+
+  document.getElementById('map-card').style.display='block';
+  document.getElementById('legend').style.display='block';
+
+  dibujarMapa(f);
+};
+
+/* ════════════════════════════════════════
+   CALCULAR RUTA OPTIMA con OSRM publico
+   
+   OSRM (Open Source Routing Machine) ofrece un
+   servidor demo publico en router.project-osrm.org
+   que devuelve la ruta mas corta por carretera
+   entre dos puntos GPS.
+   
+   Endpoint: 
+   https://router.project-osrm.org/route/v1/driving/{lon1},{lat1};{lon2},{lat2}?overview=full&geometries=geojson
+   
+   Devuelve:
+   - distance: metros
+   - duration: segundos
+   - geometry.coordinates: array de [lon,lat] de la ruta
+════════════════════════════════════════ */
+function calcularRutaOptima(){
+  if(filaActiva<0)return;
+  var f=resultados[filaActiva];
+  var pts=f.puntos;
+  if(!pts||pts.length<2)return;
+
+  /* Marcar boton como cargando */
+  document.getElementById('compare-content').innerHTML=
+    "<div style='text-align:center; padding:8px'><span class='spinner-small'></span> Calculando ruta optima...</div>";
+
+  /* Coordenadas: primer y ultimo punto del viaje */
+  var pStart=pts[0];
+  var pEnd=pts[pts.length-1];
+
+  var url='https://router.project-osrm.org/route/v1/driving/'+
+          pStart.longitude+','+pStart.latitude+';'+
+          pEnd.longitude+','+pEnd.latitude+
+          '?overview=full&geometries=geojson';
+
+  fetch(url)
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(!data.routes||!data.routes.length){
+        document.getElementById('compare-content').innerHTML=
+          "<div style='color:#a32d2d; font-size:11px; text-align:center'>No se pudo calcular la ruta optima.</div>";
+        return;
+      }
+      var ruta=data.routes[0];
+      f.rutaOptima={
+        distanciaKm: Math.round(ruta.distance/1000*10)/10,
+        duracionMin: Math.round(ruta.duration/60),
+        coords: ruta.geometry.coordinates.map(function(c){return [c[1],c[0]];}) /* invertir lng,lat -> lat,lng */
+      };
+      mostrarComparacion(f);
+      dibujarRutaOptima(f);
+    })
+    .catch(function(err){
+      document.getElementById('compare-content').innerHTML=
+        "<div style='color:#a32d2d; font-size:11px; text-align:center'>Error: "+err.message+"</div>";
+    });
+}
+
+function mostrarComparacion(f){
+  var ro=f.rutaOptima;
+  if(!ro)return;
+
+  var diffDist=Math.round((f.distanciaKm-ro.distanciaKm)*10)/10;
+  var diffMin=f.duracionMin-ro.duracionMin;
+  var pctDist=Math.round((diffDist/ro.distanciaKm)*100);
+  var pctTime=Math.round((diffMin/ro.duracionMin)*100);
+
+  var diffDistCls=diffDist>0?'diff-pos':'diff-neg';
+  var diffMinCls=diffMin>0?'diff-pos':'diff-neg';
+  var sgnDist=diffDist>0?'+':'';
+  var sgnMin=diffMin>0?'+':'';
+
+  document.getElementById('compare-content').innerHTML=
+    "<div class='compare-row'><span class='lbl'>Dist. optima:</span><span class='val'>"+ro.distanciaKm+" km</span></div>"+
+    "<div class='compare-row'><span class='lbl'>Tiempo estimado:</span><span class='val'>"+fmtDur(ro.duracionMin)+"</span></div>"+
+    "<div class='compare-row' style='border-top:1px dashed #eee; padding-top:5px; margin-top:4px'>"+
+      "<span class='lbl'>Desvio dist.:</span>"+
+      "<span class='val "+diffDistCls+"'>"+sgnDist+diffDist+" km ("+sgnDist+pctDist+"%)</span>"+
+    "</div>"+
+    "<div class='compare-row'>"+
+      "<span class='lbl'>Desvio tiempo:</span>"+
+      "<span class='val "+diffMinCls+"'>"+sgnMin+fmtDur(Math.abs(diffMin))+" ("+sgnMin+pctTime+"%)</span>"+
+    "</div>";
+}
+
+function dibujarRutaOptima(f){
+  if(!window._lmap||!f.rutaOptima)return;
+
+  /* Eliminar ruta optima anterior si existe */
+  if(window._lmap_optima){
+    window._lmap.removeLayer(window._lmap_optima);
+  }
+
+  /* Dibujar ruta optima en verde punteado */
+  window._lmap_optima=L.polyline(f.rutaOptima.coords,{
+    color:'#00a884',
+    weight:3,
+    opacity:0.8,
+    dashArray:'8, 6'
+  }).addTo(window._lmap);
+
+  /* Ajustar bounds para mostrar ambas rutas */
+  var realBounds=L.polyline(f.puntos.map(function(p){return [p.latitude,p.longitude];})).getBounds();
+  var optBounds=window._lmap_optima.getBounds();
+  var combined=realBounds.extend(optBounds);
+  window._lmap.fitBounds(combined,{padding:[30,30]});
+}
+
+dibujarMapa = function(f){
+  var pts=f.puntos;
+  if(!pts||!pts.length)return;
+
+  function renderLeaflet(f){
+    var pts=f.puntos;
+    var coords=pts.map(function(p){return[p.latitude,p.longitude];});
+
+    if(!window._lmap){
+      document.getElementById('map-container').innerHTML='<div id="lmap" style="width:100%;height:100%;"></div>';
+      window._lmap=L.map('lmap',{zoomControl:true,attributionControl:false});
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+        maxZoom:19,attribution:'(c) OpenStreetMap'
+      }).addTo(window._lmap);
+    }
+
+    /* Limpiar capas previas */
+    if(window._lmap_layers){
+      window._lmap_layers.forEach(function(c){window._lmap.removeLayer(c);});
+    }
+    window._lmap_layers=[];
+    if(window._lmap_optima){
+      window._lmap.removeLayer(window._lmap_optima);
+      window._lmap_optima=null;
+    }
+
+    /* Ruta GPS real */
+    var colorRuta=f.velMaxKmh>100?'#d62c2c':f.duracionMin>600?'#d68a00':'#0d3c6e';
+    var ruta=L.polyline(coords,{color:colorRuta,weight:4,opacity:0.85}).addTo(window._lmap);
+    window._lmap_layers.push(ruta);
+
+    /* Marcadores S y D */
+    var mkS=L.divIcon({
+      html:'<div style="width:30px;height:30px;background:#00a884;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);">S</div>',
+      className:'',iconSize:[30,30],iconAnchor:[15,15]
+    });
+    var mS=L.marker(coords[0],{icon:mkS}).bindPopup('<b>Salida origen</b><br>'+fmtF(f.tSalida)).addTo(window._lmap);
+    window._lmap_layers.push(mS);
+
+    var mkD=L.divIcon({
+      html:'<div style="width:30px;height:30px;background:#d62c2c;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);">D</div>',
+      className:'',iconSize:[30,30],iconAnchor:[15,15]
+    });
+    var mD=L.marker(coords[coords.length-1],{icon:mkD}).bindPopup('<b>Llegada destino</b><br>'+fmtF(f.tLlegada)+'<br>'+f.distanciaKm+' km - '+fmtDur(f.duracionMin)).addTo(window._lmap);
+    window._lmap_layers.push(mD);
+
+    /* Puntos exceso velocidad */
+    pts.forEach(function(p){
+      if(p.speed>100){
+        var c=L.circleMarker([p.latitude,p.longitude],{
+          radius:5,color:'#d62c2c',fillColor:'#d62c2c',fillOpacity:0.85,weight:1.5
+        }).bindPopup('! '+Math.round(p.speed)+' km/h').addTo(window._lmap);
+        window._lmap_layers.push(c);
+      }
+    });
+
+    window._lmap.fitBounds(ruta.getBounds(),{padding:[30,30]});
+
+    /* Si ya teniamos la ruta optima calculada, redibujarla */
+    if(f.rutaOptima){
+      dibujarRutaOptima(f);
+    }
+  }
+
+  if(!window.L){
+    var css=document.createElement('link');
+    css.rel='stylesheet';
+    css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(css);
+    var sc=document.createElement('script');
+    sc.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    sc.onload=function(){renderLeaflet(f);};
+    document.head.appendChild(sc);
+  } else {
+    renderLeaflet(f);
+  }
+};
+
+mostrarError = function(msg){
+  var el=document.getElementById('error-box');
+  el.textContent='! '+msg; el.style.display='block';
+};
+ocultarError = function(){document.getElementById('error-box').style.display='none';};
+dbg = function(msg){var el=document.getElementById('debug-box');el.style.display='block';el.innerHTML+='i '+msg+' - ';};
+ocultarDebug = function(){var el=document.getElementById('debug-box');el.style.display='none';el.innerHTML='';};
+mostrarVacio = function(det){
+  document.getElementById('tbl-count').innerHTML='Sin resultados';
+  document.getElementById('tabla-area').innerHTML=
+    "<div class='empty'><div class='icon'>&#9906;</div><p>No se encontraron viajes.</p><small style='color:#aaa;font-size:11px'>"+(det||'')+"</small></div>";
+};
+</script>
+</body>
+</html>
