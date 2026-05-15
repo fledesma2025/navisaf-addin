@@ -1,16 +1,16 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Este archivo proporciona orientación a Claude Code (claude.ai/code) al trabajar con el código de este repositorio.
 
-## What this is
+## Qué es este proyecto
 
-A **Geotab Add-In** (fleet telematics platform) called "Analizador de Viajes" (Trip Analyzer) for Navisaf's `fleet_colombia` account. It is a **single-file application** — the entire add-in lives in `analizador-viajes.html` (HTML + CSS + JavaScript, ~1600 lines, no build system).
+Un **Add-In de Geotab** (plataforma de telemática de flotas) llamado "Analizador de Viajes" para la cuenta `fleet_colombia` de Navisaf. Es una **aplicación de un solo archivo** — el add-in completo vive en `analizador-viajes.html` (HTML + CSS + JavaScript, ~1600 líneas, sin sistema de build).
 
-There is no `package.json`, no bundler, no test suite, and no build step. Development means editing the HTML file directly.
+No hay `package.json`, ni bundler, ni suite de pruebas, ni paso de compilación. Desarrollar significa editar el archivo HTML directamente.
 
-## Deployment context
+## Contexto de despliegue
 
-This file runs inside the Geotab web platform as an embedded Add-In. Geotab injects a `geotab` global and loads the file in an iframe. The entry point is the registration at line 280:
+Este archivo corre dentro de la plataforma web de Geotab como un Add-In embebido. Geotab inyecta un global `geotab` y carga el archivo en un iframe. El punto de entrada es el registro en la línea 280:
 
 ```js
 geotab.addin['transito-geocercas'] = function() {
@@ -22,51 +22,51 @@ geotab.addin['transito-geocercas'] = function() {
 };
 ```
 
-The `api` object (stored as `geotabApi`) is the only way to fetch data — it exposes `geotabApi.call(typeName, search, successCb, errorCb)` against the Geotab database. Key types used:
-- `Zone` — geofences (geocercas); has `.id`, `.name`, `.points[]` (polygon with `.x`/`.y` for lng/lat), and `.radius` (for circular zones)
-- `Device` — vehicles; has `.id`, `.name`
-- `LogRecord` — GPS position logs; has `.device.id`, `.dateTime`, `.latitude`, `.longitude`, `.speed` (in km/h)
+El objeto `api` (almacenado como `geotabApi`) es la única forma de obtener datos — expone `geotabApi.call(typeName, search, successCb, errorCb)` contra la base de datos de Geotab. Tipos clave utilizados:
+- `Zone` — geocercas; tiene `.id`, `.name`, `.points[]` (polígono con `.x`/`.y` para lng/lat) y `.radius` (para zonas circulares)
+- `Device` — vehículos; tiene `.id`, `.name`
+- `LogRecord` — registros de posición GPS; tiene `.device.id`, `.dateTime`, `.latitude`, `.longitude`, `.speed` (en km/h)
 
-## Core data flow
+## Flujo de datos principal
 
-1. **Init** (`cargarDatosIniciales`): fetches all Zones (up to 5000) and Devices (up to 2000); populates the filter dropdowns.
+1. **Inicio** (`cargarDatosIniciales`): obtiene todas las Zones (hasta 5000) y Devices (hasta 2000); llena los desplegables de filtros.
 
-2. **Query** (on "Consultar" click): fetches `LogRecord` for the date range (up to 100,000 records), optionally filtered by device. Groups records by vehicle, sorts each vehicle's points by `dateTime`.
+2. **Consulta** (al hacer clic en "Consultar"): obtiene `LogRecord` para el rango de fechas (hasta 100.000 registros), opcionalmente filtrado por vehículo. Agrupa registros por vehículo y ordena los puntos de cada uno por `dateTime`.
 
-3. **Trip detection** (`detectarViajes`): per-vehicle state machine (`buscando_salida` → `buscando_llegada`). A trip starts when a vehicle leaves the origin zone and ends when it enters the destination zone. Uses:
-   - Circular zones: `haversineM` distance ≤ `zona.radius`
-   - Polygon zones: ray-casting (`raycast`) — **note**: zone points use `.x` for longitude and `.y` for latitude (Geotab convention, opposite of the usual lat/lng order).
+3. **Detección de viajes** (`detectarViajes`): máquina de estados por vehículo (`buscando_salida` → `buscando_llegada`). Un viaje comienza cuando el vehículo sale de la zona origen y termina cuando entra a la zona destino. Usa:
+   - Zonas circulares: distancia `haversineM` ≤ `zona.radius`
+   - Zonas poligonales: ray-casting (`raycast`) — **importante**: los puntos de zona usan `.x` para longitud y `.y` para latitud (convención de Geotab, al revés del orden habitual lat/lng).
 
-4. **Metrics** (`calcMetricas`): computes per-trip distance (Haversine sum), max/avg speed, duration. Status classification:
+4. **Métricas** (`calcMetricas`): calcula por viaje la distancia (suma de Haversine), velocidad máx/promedio y duración. Clasificación de estado:
    - `velMaxKmh > 100` → `'velocidad'`
    - `duracionMin > 600` (>10 h) → `'demorado'`
-   - otherwise → `'a tiempo'`
+   - en caso contrario → `'a tiempo'`
 
-5. **Map** (`dibujarMapa`): Leaflet.js loaded dynamically from unpkg CDN on first use. Uses `window._lmap` as the singleton map instance and `window._lmap_layers` for the current trip's layers. Track color encodes status: red (speed), orange (delayed), dark blue (normal). Speed-violation points (>100 km/h) get individual red circle markers.
+5. **Mapa** (`dibujarMapa`): Leaflet.js cargado dinámicamente desde el CDN de unpkg en el primer uso. Usa `window._lmap` como instancia singleton del mapa y `window._lmap_layers` para las capas del viaje activo. El color del trazado indica el estado: rojo (velocidad), naranja (demorado), azul oscuro (normal). Los puntos de exceso de velocidad (>100 km/h) reciben marcadores circulares rojos individuales.
 
-6. **Optimal route** (`calcularRutaOptima`): calls the public OSRM demo API (`router.project-osrm.org`) with the trip's first and last GPS point. Result is cached on `f.rutaOptima` and drawn as a green dashed polyline.
+6. **Ruta óptima** (`calcularRutaOptima`): llama a la API pública demo de OSRM (`router.project-osrm.org`) con el primer y último punto GPS del viaje. El resultado se cachea en `f.rutaOptima` y se dibuja como una polilínea verde punteada.
 
-7. **Export**: CSV with UTF-8 BOM (for Excel) generated client-side via `Blob` + `URL.createObjectURL`.
+7. **Exportación**: CSV con BOM UTF-8 (para Excel) generado en el cliente mediante `Blob` + `URL.createObjectURL`.
 
-## Critical structural quirk
+## Quirk estructural crítico
 
-The file contains **multiple stacked overrides** of the same functions (`mostrarLayout`, `setCargando`, `renderTabla`, `renderKPIs`, `seleccionarViaje`, `dibujarMapa`, `mostrarError`, `dbg`, etc.). These are stacked from line ~727 onward in four successive blocks. **The last definition wins.** The canonical, active implementations are the final ones (roughly lines 1303–1599). When modifying any of these functions, edit only the last occurrence and consider consolidating or removing the dead earlier versions.
+El archivo contiene **múltiples sobreescrituras apiladas** de las mismas funciones (`mostrarLayout`, `setCargando`, `renderTabla`, `renderKPIs`, `seleccionarViaje`, `dibujarMapa`, `mostrarError`, `dbg`, etc.). Están apiladas desde la línea ~727 en cuatro bloques sucesivos. **La última definición es la que aplica.** Las implementaciones canónicas y activas son las últimas (aproximadamente líneas 1303–1599). Al modificar cualquiera de estas funciones, editar solo la última ocurrencia y considerar consolidar o eliminar las versiones anteriores inactivas.
 
-## Brand/style constants
+## Constantes de marca/estilo
 
-- Primary navy: `#0d3c6e`
-- Accent teal: `#00a884`
-- Speed-violation red: `#d62c2c`
-- Delayed orange: `#d68a00`
+- Azul marino principal: `#0d3c6e`
+- Verde acento: `#00a884`
+- Rojo exceso velocidad: `#d62c2c`
+- Naranja demorado: `#d68a00`
 
-## How to test locally
+## Cómo probar localmente
 
-Open `analizador-viajes.html` directly in a browser to inspect HTML/CSS. The JavaScript will not function outside Geotab (the `geotabApi` object is not present), but you can stub it for UI development:
+Abrir `analizador-viajes.html` directamente en un navegador para inspeccionar HTML/CSS. El JavaScript no funcionará fuera de Geotab (el objeto `geotabApi` no existe), pero se puede simular para desarrollo de UI:
 
 ```js
-// Minimal stub for local development
+// Stub mínimo para desarrollo local
 window.geotab = { addin: {} };
-// Then call initialize manually after defining a fake api object
+// Luego llamar initialize manualmente con un objeto api falso
 ```
 
-To test with real data, the file must be loaded through the Geotab Add-In system (either the Geotab Marketplace or a custom Add-In configuration pointing to the hosted file URL).
+Para probar con datos reales, el archivo debe cargarse a través del sistema de Add-In de Geotab (ya sea el Marketplace de Geotab o una configuración de Add-In personalizada apuntando a la URL donde esté alojado el archivo).
